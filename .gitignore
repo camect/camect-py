@@ -1,0 +1,4 @@
+build/
+camect.py.egg-info/
+dist/
+__pycache__/
