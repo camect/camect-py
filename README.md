@@ -9,7 +9,7 @@ pip install camect-py
 ## Usage
 <pre>
 import camect
-home = camect.Home("camect.local:9443", "admin", "xxx")
+home = camect.Home("camect.local:8443", "admin", "xxx")
 home.get_name()
 home.add_event_listener(lambda evt: print(evt))
 </pre>

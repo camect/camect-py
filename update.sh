@@ -2,7 +2,7 @@
 set -e
 
 prod=
-OPTS=`getopt -n 'update.sh' -o p -l prod: -- "$@"`
+OPTS=`getopt -n 'update.sh' -o p -l prod -- "$@"`
 eval set -- "$OPTS"
 while true; do
     case "$1" in
