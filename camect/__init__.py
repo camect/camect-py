@@ -12,6 +12,8 @@ import urllib3
 import requests
 import websockets
 
+EMBEDDED_BUNDLE_JS = "js/embedded_bundle.min.js"
+
 _LOGGER = logging.getLogger(__name__)
 
 EventListener = Callable[[Dict[str, str]], None]
@@ -28,9 +30,9 @@ class Home:
         home.add_event_listener(lambda evt: print(evt))
     """
     def __init__(self, server_addr, user, password) -> None:
+        self._server_addr = server_addr
         self._api_prefix: str = f"https://{server_addr}/api/"
         self._ws_uri: str = f"wss://{server_addr}/api/event_ws"
-        self._host: str = server_addr.split(":")[0]
         self._user: str = user
         self._password: str = password
         self._evt_listeners_: List[EventListener] = []
@@ -39,20 +41,6 @@ class Home:
             target=self._evt_loop.run_until_complete, args=(self._event_handler(),))
         evt_thread.daemon = True
         evt_thread.start()
-
-    def get_embedded_bundle_js(self) -> str:
-        info = self.get_info()
-        if info:
-            http_port = info["http_port"]
-            return f"http://{self._host}:{http_port}/js/embedded_bundle.min.js"
-        return ""
-
-    def get_fontface_css(self) -> str:
-        info = self.get_info()
-        if info:
-            http_port = info["http_port"]
-            return f"http://{self._host}:{http_port}/font/fontface.css"
-        return ""
 
     def get_id(self) -> str:
         info = self.get_info()
@@ -72,29 +60,33 @@ class Home:
             return info["mode"]
         return ""
 
-    def get_cloud_url(self) -> str:
+    def get_cloud_url(self, path) -> str:
         info = self.get_info()
         if info:
-            return info["cloud_url"]
+            return info["cloud_url"] + path
         return ""
 
-    def get_cloud_ws_url(self) -> str:
+    def get_cloud_websocket_url(self) -> str:
+        return self.get_cloud_url("webrtc/ws.json").replace("https://", "wss://")
+
+    # The returned URL needs internet and may not work in certain network environment.
+    def get_local_https_url(self, path) -> str:
         info = self.get_info()
         if info:
-            return info["cloud_ws_url"]
+            return info["local_https_url"] + path + "?X-AUTHORIZATION=" + self._authorization()
         return ""
 
-    def get_local_https_url(self) -> str:
-        info = self.get_info()
-        if info:
-            return info["local_https_url"]
-        return ""
+    # The returned URL needs internet and may not work in certain network environment.
+    def get_local_websocket_url(self) -> str:
+        return self.get_local_https_url("webrtc/ws.json").replace("https://", "wss://")
 
-    def get_local_ws_url(self) -> str:
-        info = self.get_info()
-        if info:
-            return info["local_ws_url"] + "?X-AUTHORIZATION=" + self._authorization()
-        return ""
+    # The returned URL has invalid TLS certificate.
+    def get_unsecure_https_url(self, path) -> str:
+        return f"https://{self._server_addr}/{path}?X-AUTHORIZATION=" + self._authorization()
+
+    # The returned URL has invalid TLS certificate.
+    def get_unsecure_websocket_url(self) -> str:
+        return self.get_unsecure_https_url("webrtc/ws.json").replace("https://", "wss://")
 
     def get_info(self) -> Dict[str, str]:
         resp = requests.get(
@@ -109,7 +101,7 @@ class Home:
     def set_name(self, name: str) -> None:
         resp = requests.get(
             self._api_prefix + "SetHomeName", verify=False, auth=(self._user, self._password),
-            params={"name": name})
+            params={"Name": name})
         if resp.status_code != 200:
             _LOGGER.error(
                 "Failed to set home name to '%s': [%d](%s)", name,
@@ -118,7 +110,7 @@ class Home:
     def set_mode(self, mode: str) -> None:
         resp = requests.get(
             self._api_prefix + "SetOperationMode", verify=False, auth=(self._user, self._password),
-            params={"mode": mode})
+            params={"Mode": mode})
         if resp.status_code != 200:
             _LOGGER.error(
                 "Failed to set operation mode to '%s': [%d](%s)", mode,

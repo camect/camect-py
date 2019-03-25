@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="camect-py",
-    version="0.0.6",
+    version="0.1.0",
     author="Chao Liu",
     author_email="chao@camect.com",
     description="A client library to talk to Camect.",
