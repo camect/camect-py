@@ -126,6 +126,17 @@ class Home:
             return None
         return json["camera"]
 
+    def snapshot_camera(self, cam_id, width=0, height=0) -> bytes:
+        resp = requests.get(
+            self._api_prefix + "SnapshotCamera", verify=False, auth=(self._user, self._password),
+            params={"CamId": cam_id, "Width": str(width), "Height": str(height)})
+        json = resp.json()
+        if resp.status_code != 200:
+            _LOGGER.error(
+                "Failed to snapshot camera: [%d](%s)", resp.status_code, json["err_msg"])
+            return None
+        return base64.b64decode(json["jpeg_data"])
+
     def add_event_listener(self, cb: EventListener) -> None:
         self._evt_loop.call_soon_threadsafe(self._evt_listeners_.append, cb)
 
