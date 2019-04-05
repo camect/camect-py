@@ -5,6 +5,7 @@ import base64
 import json
 import logging
 import ssl
+import sys
 from threading import Thread
 from typing import Callable, Dict, List
 import urllib3
@@ -20,6 +21,7 @@ EventListener = Callable[[Dict[str, str]], None]
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+
 class Home:
     """Client talking to Camect home server.
 
@@ -29,13 +31,13 @@ class Home:
         home.get_name()
         home.add_event_listener(lambda evt: print(evt))
     """
-    def __init__(self, server_addr, user, password) -> None:
+    def __init__(self, server_addr: str, user: str, password: str) -> None:
         self._server_addr = server_addr
-        self._api_prefix: str = f"https://{server_addr}/api/"
-        self._ws_uri: str = f"wss://{server_addr}/api/event_ws"
-        self._user: str = user
-        self._password: str = password
-        self._evt_listeners_: List[EventListener] = []
+        self._api_prefix = f"https://{server_addr}/api/"
+        self._ws_uri = f"wss://{server_addr}/api/event_ws"
+        self._user = user
+        self._password = password
+        self._evt_listeners_ = []
         self._evt_loop = asyncio.new_event_loop()
         evt_thread = Thread(
             target=self._evt_loop.run_until_complete, args=(self._event_handler(),))
@@ -70,7 +72,7 @@ class Home:
         return self.get_cloud_url("webrtc/ws.json").replace("https://", "wss://")
 
     # The returned URL needs internet and may not work in certain network environment.
-    def get_local_https_url(self, path) -> str:
+    def get_local_https_url(self, path: str) -> str:
         info = self.get_info()
         if info:
             return info["local_https_url"] + path + "?X-AUTHORIZATION=" + self._authorization()
@@ -81,7 +83,7 @@ class Home:
         return self.get_local_https_url("webrtc/ws.json").replace("https://", "wss://")
 
     # The returned URL has invalid TLS certificate.
-    def get_unsecure_https_url(self, path) -> str:
+    def get_unsecure_https_url(self, path: str) -> str:
         return f"https://{self._server_addr}/{path}?X-AUTHORIZATION=" + self._authorization()
 
     # The returned URL has invalid TLS certificate.
@@ -126,7 +128,7 @@ class Home:
             return None
         return json["camera"]
 
-    def snapshot_camera(self, cam_id, width=0, height=0) -> bytes:
+    def snapshot_camera(self, cam_id: str, width: int = 0, height: int = 0) -> bytes:
         resp = requests.get(
             self._api_prefix + "SnapshotCamera", verify=False, auth=(self._user, self._password),
             params={"CamId": cam_id, "Width": str(width), "Height": str(height)})
@@ -136,6 +138,23 @@ class Home:
                 "Failed to snapshot camera: [%d](%s)", resp.status_code, json["err_msg"])
             return None
         return base64.b64decode(json["jpeg_data"])
+
+    def generate_access_token(self, expiration_ts: int = 0) -> str:
+        """Generates a token that could be used to establish P2P connection with home server w/o
+        login.
+
+        NOTE: Please keep the returned token safe.
+        To invalidate the token, change the user's password.
+        """
+        resp = requests.get(
+            self._api_prefix + "GenerateAccessToken", verify=False,
+            auth=(self._user, self._password), params={"ExpirationTs": str(expiration_ts)})
+        json = resp.json()
+        if resp.status_code != 200:
+            _LOGGER.error(
+                "Failed to generate access token: [%d](%s)", resp.status_code, json["err_msg"])
+            return None
+        return json["token"]
 
     def add_event_listener(self, cb: EventListener) -> None:
         self._evt_loop.call_soon_threadsafe(self._evt_listeners_.append, cb)
