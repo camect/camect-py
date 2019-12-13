@@ -23,6 +23,10 @@ EventListener = Callable[[Dict[str, str]], None]
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+class Error(Exception):
+    pass
+
+
 class Home:
     """Client talking to Camect home server.
 
@@ -38,6 +42,8 @@ class Home:
         self._ws_uri = f"wss://{server_addr}/api/event_ws"
         self._user = user
         self._password = password
+        # Make sure it connects.
+        self.get_info()
         self._evt_listeners_ = []
         self._evt_loop = asyncio.new_event_loop()
         evt_thread = Thread(
@@ -97,9 +103,7 @@ class Home:
             self._api_prefix + "GetHomeInfo", verify=False, auth=(self._user, self._password))
         json = resp.json()
         if resp.status_code != 200:
-            _LOGGER.error(
-                "Failed to get home info: [%d](%s)", resp.status_code, json["err_msg"])
-            return None
+            raise Error("Failed to get home info: [%d](%s)" % (resp.status_code, json["err_msg"]))
         return json
 
     def set_name(self, name: str) -> None:
@@ -107,27 +111,23 @@ class Home:
             self._api_prefix + "SetHomeName", verify=False, auth=(self._user, self._password),
             params={"Name": name})
         if resp.status_code != 200:
-            _LOGGER.error(
-                "Failed to set home name to '%s': [%d](%s)", name,
-                resp.status_code, resp.json()["err_msg"])
+            raise Error("Failed to set home name to '%s': [%d](%s)" % (name,
+                resp.status_code, resp.json()["err_msg"]))
 
     def set_mode(self, mode: str) -> None:
         resp = requests.get(
             self._api_prefix + "SetOperationMode", verify=False, auth=(self._user, self._password),
             params={"Mode": mode})
         if resp.status_code != 200:
-            _LOGGER.error(
-                "Failed to set operation mode to '%s': [%d](%s)", mode,
-                resp.status_code, resp.json()["err_msg"])
+            raise Error("Failed to set operation mode to '%s': [%d](%s)" % (mode,
+                resp.status_code, resp.json()["err_msg"]))
 
     def list_cameras(self) -> List[Dict[str, str]]:
         resp = requests.get(
             self._api_prefix + "ListCameras", verify=False, auth=(self._user, self._password))
         json = resp.json()
         if resp.status_code != 200:
-            _LOGGER.error(
-                "Failed to get home info: [%d](%s)", resp.status_code, json["err_msg"])
-            return None
+            raise Error("Failed to get home info: [%d](%s)" % (resp.status_code, json["err_msg"]))
         return json["camera"]
 
     def snapshot_camera(self, cam_id: str, width: int = 0, height: int = 0) -> bytes:
@@ -136,9 +136,7 @@ class Home:
             params={"CamId": cam_id, "Width": str(width), "Height": str(height)})
         json = resp.json()
         if resp.status_code != 200:
-            _LOGGER.error(
-                "Failed to snapshot camera: [%d](%s)", resp.status_code, json["err_msg"])
-            return None
+            raise Error("Failed to snapshot camera: [%d](%s)" % (resp.status_code, json["err_msg"]))
         return base64.b64decode(json["jpeg_data"])
 
     def generate_access_token(self, expiration_secs: int = 24 * 3600) -> str:
@@ -154,9 +152,8 @@ class Home:
             auth=(self._user, self._password), params={"ExpirationTs": str(expiration_ts)})
         json = resp.json()
         if resp.status_code != 200:
-            _LOGGER.error(
-                "Failed to generate access token: [%d](%s)", resp.status_code, json["err_msg"])
-            return None
+            raise Error("Failed to generate access token: [%d](%s)" % (resp.status_code,
+                json["err_msg"]))
         return json["token"]
 
     def add_event_listener(self, cb: EventListener) -> None:
