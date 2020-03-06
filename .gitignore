@@ -2,3 +2,4 @@ build/
 camect.py.egg-info/
 dist/
 __pycache__/
+camect_py.egg-info

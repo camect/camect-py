@@ -8,7 +8,7 @@ setuptools.setup(
     description="A client library to talk to Camect.",
     license="MIT License",
     long_description=open('README.md').read(),
-    long_description_content_type="text/markdown",
+#    long_description_content_type="text/markdown",
     url="https://github.com/camect/camect-py",
     packages=setuptools.find_packages(),
     classifiers=[
@@ -18,6 +18,8 @@ setuptools.setup(
     ],
     install_requires=[
         "websockets",
+        "urllib3",
+        "requests",
     ],
     python_requires='>=3.6',
 )
