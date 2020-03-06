@@ -15,7 +15,7 @@ import urllib3
 import requests
 import websockets
 
-#EMBEDDED_BUNDLE_JS = "js/embedded_bundle.min.js"
+EMBEDDED_BUNDLE_JS = "js/embedded_bundle.min.js"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -186,11 +186,6 @@ class Home:
                                 bout = bout.split(" just saw a ", 2)
                                 evt['camera'] = bout[0]
                                 evt['object'] = bout[1]
-#                                bout = bout['desc'].re.sub('\.$', '')
-#                                bout = evt['desc'].split(" just saw a ", 2)
-#                            elif evt['type'] == 'mode':
-#                                evt['success'] = 'mode'
-#                            print(str(type(msg)))
                             for cb in self._evt_listeners_:
                                 cb(evt)
                         except json.decoder.JSONDecodeError as err:
