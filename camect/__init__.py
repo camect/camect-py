@@ -6,6 +6,7 @@ import json
 import logging
 import ssl
 import sys
+import re
 from threading import Thread
 import time
 from typing import Callable, Dict, List
@@ -179,6 +180,12 @@ class Home:
                         _LOGGER.debug("Received event: %s", msg)
                         try:
                             evt = json.loads(msg)
+                            if evt['type'] == 'alert':
+                                bout = re.sub(r'^Camera ', '', evt['desc'])
+                                bout = re.sub(r'\.$', '', bout)
+                                bout = bout.split(" just saw a ", 2)
+                                evt['camera'] = bout[0]
+                                evt['object'] = bout[1]
                             for cb in self._evt_listeners_:
                                 cb(evt)
                         except json.decoder.JSONDecodeError as err:
