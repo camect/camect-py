@@ -18,6 +18,8 @@ setuptools.setup(
     ],
     install_requires=[
         "websockets",
+        "urllib3",
+        "requests",
     ],
     python_requires='>=3.6',
 )
