@@ -169,24 +169,31 @@ class Home:
         context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
         context.verify_mode = ssl.CERT_NONE
         authorization = "Basic " + self._authorization()
-        while True:
-            _LOGGER.info("Connecting to Camect Home at '%s' ...", self._ws_uri)
+        attempt=0
+        while(True):
             try:
-                async with websockets.connect(
-                        self._ws_uri, ssl=context,
-                        extra_headers={"Authorization": authorization}) as websocket:
-                    async for msg in websocket:
+                _LOGGER.info("Connecting to Camect Home at '%s' ...", self._ws_uri)
+                websocket = await websockets.connect(self._ws_uri, ssl=context,extra_headers={"Authorization": authorization})
+                try:
+                    msg = await websocket.recv()
+                    try:
                         _LOGGER.debug("Received event: %s", msg)
-                        try:
-                            evt = json.loads(msg)
-                            for cb in self._evt_listeners_:
-                                cb(evt)
-                        except json.decoder.JSONDecodeError as err:
-                            _LOGGER.error("Invalid JSON '%s': %s", msg, err)
-            except websockets.exceptions.ConnectionClosed:
-                _LOGGER.warning("Websocket to Camect Home was closed.")
-                await asyncio.sleep(5)
-            except ConnectionRefusedError:
+                        evt = json.loads(msg)
+                        for cb in self._evt_listeners_:
+                            cb(evt)
+                    except json.decoder.JSONDecodeError as err:
+              	        _LOGGER.error("Invalid JSON '%s': %s", msg, err)
+                except (websockets.exceptions.ConnectionClosed, OSError):
+                    _LOGGER.warning("Websocket to Camect Home was closed.")
+                    await asyncio.sleep(5)
+                except (ConnectionRefusedError, ConnectionError):
+                    _LOGGER.warning("Cannot connect Camect Home.")
+                    await asyncio.sleep(10)
+                except:
+                    e = sys.exc_info()[0]
+                    _LOGGER.warning("Unexpected exception: %s", e)
+                    await asyncio.sleep(10)
+            except (OSError, ConnectionError):
                 _LOGGER.warning("Cannot connect Camect Home.")
                 await asyncio.sleep(10)
             except:
