@@ -169,7 +169,6 @@ class Home:
         context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
         context.verify_mode = ssl.CERT_NONE
         authorization = "Basic " + self._authorization()
-        attempt=0
         while(True):
             try:
                 _LOGGER.info("Connecting to Camect Home at '%s' ...", self._ws_uri)
