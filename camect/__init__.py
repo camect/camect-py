@@ -172,11 +172,12 @@ class Home:
         while(True):
             try:
                 _LOGGER.info("Connecting to Camect Home at '%s' ...", self._ws_uri)
-                websocket = await websockets.connect(self._ws_uri, ssl=context,extra_headers={"Authorization": authorization})
+                websocket = await websockets.connect(self._ws_uri, ssl=context,
+                    extra_headers={"Authorization": authorization})
                 try:
                     msg = await websocket.recv()
+                    _LOGGER.debug("Received event: %s", msg)
                     try:
-                        _LOGGER.debug("Received event: %s", msg)
                         evt = json.loads(msg)
                         for cb in self._evt_listeners_:
                             cb(evt)
