@@ -166,7 +166,7 @@ class Home:
         return base64.b64encode(f"{self._user}:{self._password}".encode()).decode()
 
     async def _event_handler(self):
-        context = ssl.SSLContext(ssl.PROTOCOL_TLSv1)
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS)
         context.verify_mode = ssl.CERT_NONE
         authorization = "Basic " + self._authorization()
         while(True):
