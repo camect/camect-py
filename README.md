@@ -17,3 +17,12 @@ home.add_event_listener(lambda evt: print(evt))
 for cam in home.list_cameras():
 &nbsp;&nbsp;&nbsp;&nbsp;print("%s(%s) @%s(%s)" % (cam["name"], cam["make"], cam["ip_addr"], cam["mac_addr"]))
 </pre>
+
+### Disable / enable alerts
+<pre>
+import camect
+home = camect.Home("camect.local:443", "admin", "xxx")
+home.disable_alert(["yyy"], "testing")
+....
+home.enable_alert(["yyy"], "testing")
+</pre>

@@ -156,6 +156,50 @@ class Home:
                 json["err_msg"]))
         return json["token"]
 
+    def disable_alert(self, cam_ids: List[str], reason: str):
+        """ Disable alerts for camera(s) or the home if "cam_ids" is empty.
+        """
+        self._enable_alert(cam_ids, False, reason)
+
+    def enable_alert(self, cam_ids: List[str], reason: str):
+        """ Enable alerts for camera(s) or the home if "cam_ids" is empty.
+
+        NOTE: This method can only undo disable_alert. It has no effect if disable_alert was not
+        called before.
+        Please make sure that "reason" is same as you called disable_alert.
+        """
+        self._enable_alert(cam_ids, True, reason)
+
+    def _enable_alert(self, cam_ids: List[str], enable: bool, reason: str):
+        params = { "Reason": reason }
+        if enable:
+            params["Enable"] = "1"
+        for i in range(len(cam_ids)):
+            key = "CamId[%d]" % (i)
+            params[key] = cam_ids[i]
+        resp = requests.get(
+            self._api_prefix + "EnableAlert", verify=False, auth=(self._user, self._password),
+            params=params)
+        json = resp.json()
+        if resp.status_code != 200:
+            _LOGGER.error(
+                "Failed to enable/disable alert: [%d](%s)", resp.status_code, json["err_msg"])
+
+    def start_hls(self, cam_id: str) -> str:
+        """ Start HLS the camera. Returns the HLS URL.
+
+        The URL expires after it's been idle for 1 minute.
+        NOTE: This is an experimental feature, only available for pro units now.
+        """
+        resp = requests.get(
+            self._api_prefix + "StartStreaming", verify=False, auth=(self._user, self._password),
+            params={ "Type": "1", "CamId": cam_id, "StreamingHost": self._server_addr })
+        json = resp.json()
+        if resp.status_code != 200:
+            _LOGGER.error(
+                "Failed to start HLS: [%d](%s)", resp.status_code, json["err_msg"])
+        return json["hls_url"]
+
     def add_event_listener(self, cb: EventListener) -> None:
         self._evt_loop.call_soon_threadsafe(self._evt_listeners_.append, cb)
 
