@@ -18,6 +18,19 @@ EMBEDDED_BUNDLE_JS = "js/embedded_bundle.min.js"
 
 _LOGGER = logging.getLogger(__name__)
 
+def set_log_level(level: int):
+    _LOGGER.setLevel(level)
+
+def get_log_level() -> int:
+    return _LOGGER.getEffectiveLevel()
+
+def log_to_console():
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s [%(name)s %(levelname)s] %(message)s')
+    handler.setFormatter(formatter)
+    _LOGGER.addHandler(handler)
+
 EventListener = Callable[[Dict[str, str]], None]
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -50,6 +63,7 @@ class Home:
             target=self._evt_loop.run_until_complete, args=(self._event_handler(),))
         evt_thread.daemon = True
         evt_thread.start()
+
 
     def get_id(self) -> str:
         info = self.get_info()
@@ -219,14 +233,14 @@ class Home:
                 websocket = await websockets.connect(self._ws_uri, ssl=context,
                     extra_headers={"Authorization": authorization})
                 try:
-                    msg = await websocket.recv()
-                    _LOGGER.debug("Received event: %s", msg)
-                    try:
-                        evt = json.loads(msg)
-                        for cb in self._evt_listeners_:
-                            cb(evt)
-                    except json.decoder.JSONDecodeError as err:
-              	        _LOGGER.error("Invalid JSON '%s': %s", msg, err)
+                    async for msg in websocket:
+                        _LOGGER.debug("Received event: %s", msg)
+                        try:
+                            evt = json.loads(msg)
+                            for cb in self._evt_listeners_:
+                                cb(evt)
+                        except json.decoder.JSONDecodeError as err:
+                            _LOGGER.error("Invalid JSON '%s': %s", msg, err)
                 except (websockets.exceptions.ConnectionClosed, OSError):
                     _LOGGER.warning("Websocket to Camect Home was closed.")
                     await asyncio.sleep(5)
