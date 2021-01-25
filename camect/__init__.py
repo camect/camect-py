@@ -89,10 +89,6 @@ class Home:
             return info["cloud_url"] + path
         return ""
 
-    def get_cloud_websocket_url(self, expiration_secs: int = 24 * 3600) -> str:
-        return self.get_cloud_url("webrtc/ws").replace("https://", "wss://") + \
-            '?access_token=' + self.generate_access_token(expiration_secs)
-
     # The returned URL needs internet and may not work in certain network environment.
     def get_local_https_url(self, path: str) -> str:
         info = self.get_info()
@@ -152,23 +148,6 @@ class Home:
         if resp.status_code != 200:
             raise Error("Failed to snapshot camera: [%d](%s)" % (resp.status_code, json["err_msg"]))
         return base64.b64decode(json["jpeg_data"])
-
-    def generate_access_token(self, expiration_secs: int = 24 * 3600) -> str:
-        """Generates a token that could be used to establish P2P connection with home server w/o
-        login.
-
-        NOTE: Please keep the returned token safe.
-        To invalidate the token, change the user's password.
-        """
-        expiration_ts = int(time.time()) + expiration_secs
-        resp = requests.get(
-            self._api_prefix + "GenerateAccessToken", verify=False,
-            auth=(self._user, self._password), params={"ExpirationTs": str(expiration_ts)})
-        json = resp.json()
-        if resp.status_code != 200:
-            raise Error("Failed to generate access token: [%d](%s)" % (resp.status_code,
-                json["err_msg"]))
-        return json["token"]
 
     def disable_alert(self, cam_ids: List[str], reason: str):
         """ Disable alerts for camera(s) or the home if "cam_ids" is empty.
