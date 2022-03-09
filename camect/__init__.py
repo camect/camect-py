@@ -40,12 +40,12 @@ class Error(Exception):
     pass
 
 
-class Home:
+class Hub:
     """Client talking to Camect home server.
 
     Usage:
         import camect
-        home = camect.Home("camect.local:9443", "admin", "xxx")
+        home = camect.Hub("camect.local:9443", "admin", "xxx")
         home.get_name()
         home.add_event_listener(lambda evt: print(evt))
     """
@@ -124,10 +124,13 @@ class Home:
             raise Error("Failed to set home name to '%s': [%d](%s)" % (name,
                 resp.status_code, resp.json()["err_msg"]))
 
-    def set_mode(self, mode: str) -> None:
+    def set_mode(self, mode: str, reason: str = '') -> None:
+        params = {"Mode": mode}
+        if reason:
+            params["Reason"] = reason
         resp = requests.get(
             self._api_prefix + "SetOperationMode", verify=False, auth=(self._user, self._password),
-            params={"Mode": mode})
+            params=params)
         if resp.status_code != 200:
             raise Error("Failed to set operation mode to '%s': [%d](%s)" % (mode,
                 resp.status_code, resp.json()["err_msg"]))
@@ -178,20 +181,62 @@ class Home:
             _LOGGER.error(
                 "Failed to enable/disable alert: [%d](%s)", resp.status_code, json["err_msg"])
 
-    def start_hls(self, cam_id: str) -> str:
+    def start_hls(self, cam_id: str, ts_ms: int = 0, duration_ms: int = 0) -> str:
         """ Start HLS the camera. Returns the HLS URL.
 
         The URL expires after it's been idle for 1 minute.
         NOTE: This is an experimental feature, only available for pro units now.
         """
+        params = { "Type": "1", "CamId": cam_id, "StreamingHost": self._server_addr }
+        if ts_ms > 0:
+            params['Cmd'] = '1'
+            params['TimestampMs'] = str(ts_ms)
+            if duration_ms > 0:
+                params['DurationMs'] = str(duration_ms)
         resp = requests.get(
             self._api_prefix + "StartStreaming", verify=False, auth=(self._user, self._password),
-            params={ "Type": "1", "CamId": cam_id, "StreamingHost": self._server_addr })
+            params = params)
         json = resp.json()
         if resp.status_code != 200:
             _LOGGER.error(
                 "Failed to start HLS: [%d](%s)", resp.status_code, json["err_msg"])
         return json["hls_url"]
+
+    def set_flag(self, name: str, value: str, permanent: bool):
+        params = {
+            "Flag[0].Name": name,
+            "Flag[0].Value": value
+        }
+        if permanent:
+            params["Permanent"] = "1"
+        resp = requests.get(
+            self._api_prefix + "SetFlag", verify=False, auth=(self._user, self._password),
+            params=params)
+        if resp.status_code != 200:
+            json = resp.json()
+            _LOGGER.error(
+                "Failed to set flag '%s' to '%s': [%d](%s)", name, value, resp.status_code,
+                json["err_msg"])
+
+    def ptz(self, cam_id: str, action: int):
+        """ Pan / tilt / zoom.
+
+        Args:
+            action: 1 => pan left
+                    2 => pan right
+                    3 => tilt up
+                    4 => tilt down
+                    7 => zoom in
+                    8 => zoom out
+        """
+        params = { "CamId": cam_id, "Action": action }
+        resp = requests.get(
+            self._api_prefix + "PTZ", verify=False, auth=(self._user, self._password),
+            params=params)
+        if resp.status_code != 200:
+            json = resp.json()
+            _LOGGER.error(
+                "Failed to ptz camera %s: [%d](%s)", cam_id, resp.status_code, json["err_msg"])
 
     def add_event_listener(self, cb: EventListener) -> None:
         self._evt_loop.call_soon_threadsafe(self._evt_listeners_.append, cb)
@@ -208,7 +253,7 @@ class Home:
         authorization = "Basic " + self._authorization()
         while(True):
             try:
-                _LOGGER.info("Connecting to Camect Home at '%s' ...", self._ws_uri)
+                _LOGGER.info("Connecting to Camect hub at '%s' ...", self._ws_uri)
                 websocket = await websockets.connect(self._ws_uri, ssl=context,
                     extra_headers={"Authorization": authorization})
                 try:
@@ -221,19 +266,21 @@ class Home:
                         except json.decoder.JSONDecodeError as err:
                             _LOGGER.error("Invalid JSON '%s': %s", msg, err)
                 except (websockets.exceptions.ConnectionClosed, OSError):
-                    _LOGGER.warning("Websocket to Camect Home was closed.")
+                    _LOGGER.warning("Websocket to Camect hub was closed.")
                     await asyncio.sleep(5)
                 except (ConnectionRefusedError, ConnectionError):
-                    _LOGGER.warning("Cannot connect Camect Home.")
+                    _LOGGER.warning("Cannot connect Camect hub.")
                     await asyncio.sleep(10)
                 except:
                     e = sys.exc_info()[0]
                     _LOGGER.warning("Unexpected exception: %s", e)
                     await asyncio.sleep(10)
             except (OSError, ConnectionError):
-                _LOGGER.warning("Cannot connect Camect Home.")
+                _LOGGER.warning("Cannot connect Camect hub.")
                 await asyncio.sleep(10)
             except:
                 e = sys.exc_info()[0]
                 _LOGGER.warning("Unexpected exception: %s", e)
                 await asyncio.sleep(10)
+
+Home = Hub
