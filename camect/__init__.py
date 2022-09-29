@@ -111,9 +111,9 @@ class Hub:
     def get_info(self) -> Dict[str, str]:
         resp = requests.get(
             self._api_prefix + "GetHomeInfo", verify=False, auth=(self._user, self._password))
-        json = resp.json()
         if resp.status_code != 200:
-            raise Error("Failed to get home info: [%d](%s)" % (resp.status_code, json["err_msg"]))
+            raise Error("Failed to get home info: [%d](%s)" % (resp.status_code, resp.content))
+        json = resp.json()
         return json
 
     def set_name(self, name: str) -> None:
@@ -138,18 +138,18 @@ class Hub:
     def list_cameras(self) -> List[Dict[str, str]]:
         resp = requests.get(
             self._api_prefix + "ListCameras", verify=False, auth=(self._user, self._password))
-        json = resp.json()
         if resp.status_code != 200:
-            raise Error("Failed to get home info: [%d](%s)" % (resp.status_code, json["err_msg"]))
+            raise Error("Failed to get camera info: [%d](%s)" % (resp.status_code, resp.content))
+        json = resp.json()
         return json["camera"]
 
     def snapshot_camera(self, cam_id: str, width: int = 0, height: int = 0) -> bytes:
         resp = requests.get(
             self._api_prefix + "SnapshotCamera", verify=False, auth=(self._user, self._password),
             params={"CamId": cam_id, "Width": str(width), "Height": str(height)})
-        json = resp.json()
         if resp.status_code != 200:
-            raise Error("Failed to snapshot camera: [%d](%s)" % (resp.status_code, json["err_msg"]))
+            raise Error("Failed to snapshot camera: [%d](%s)" % (resp.status_code, resp.content))
+        json = resp.json()
         return base64.b64decode(json["jpeg_data"])
 
     def disable_alert(self, cam_ids: List[str], reason: str):
@@ -176,10 +176,9 @@ class Hub:
         resp = requests.get(
             self._api_prefix + "EnableAlert", verify=False, auth=(self._user, self._password),
             params=params)
-        json = resp.json()
         if resp.status_code != 200:
             _LOGGER.error(
-                "Failed to enable/disable alert: [%d](%s)", resp.status_code, json["err_msg"])
+                "Failed to enable/disable alert: [%d](%s)", resp.status_code, resp.content)
 
     def start_hls(self, cam_id: str, ts_ms: int = 0, duration_ms: int = 0) -> str:
         """ Start HLS the camera. Returns the HLS URL.
@@ -196,10 +195,10 @@ class Hub:
         resp = requests.get(
             self._api_prefix + "StartStreaming", verify=False, auth=(self._user, self._password),
             params = params)
-        json = resp.json()
         if resp.status_code != 200:
             _LOGGER.error(
-                "Failed to start HLS: [%d](%s)", resp.status_code, json["err_msg"])
+                "Failed to start HLS: [%d](%s)", resp.status_code, resp.content)
+        json = resp.json()
         return json["hls_url"]
 
     def set_flag(self, name: str, value: str, permanent: bool):

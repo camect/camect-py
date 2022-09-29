@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="camect-py",
-    version="0.2.0",
+    version="0.2.1",
     author="Chao Liu",
     author_email="chao@camect.com",
     description="A client library to talk to Camect.",
