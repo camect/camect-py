@@ -77,6 +77,7 @@ class Hub:
             return info["name"]
         return ""
 
+    # Returns the operation mode. Currently, "HOME" or "DEFAULT".
     def get_mode(self) -> str:
         info = self.get_info()
         if info:
@@ -124,6 +125,7 @@ class Hub:
             raise Error("Failed to set home name to '%s': [%d](%s)" % (name,
                 resp.status_code, resp.json()["err_msg"]))
 
+    # Sets the operation mode. Currently, only "HOME" or "DEFAULT".
     def set_mode(self, mode: str, reason: str = '') -> None:
         params = {"Mode": mode}
         if reason:
@@ -143,10 +145,17 @@ class Hub:
             raise Error("Failed to get home info: [%d](%s)" % (resp.status_code, json["err_msg"]))
         return json["camera"]
 
-    def snapshot_camera(self, cam_id: str, width: int = 0, height: int = 0) -> bytes:
+    def snapshot_camera(self, cam_id: str, width: int = 0, height: int = 0,
+                        ts_ms: int = 0) -> bytes:
+        params = {
+            "CamId": cam_id,
+            "Width": str(width),
+            "Height": str(height),
+            "TimestampMs": str(ts_ms)
+        }
         resp = requests.get(
             self._api_prefix + "SnapshotCamera", verify=False, auth=(self._user, self._password),
-            params={"CamId": cam_id, "Width": str(width), "Height": str(height)})
+            params=params)
         json = resp.json()
         if resp.status_code != 200:
             raise Error("Failed to snapshot camera: [%d](%s)" % (resp.status_code, json["err_msg"]))
@@ -201,22 +210,6 @@ class Hub:
             _LOGGER.error(
                 "Failed to start HLS: [%d](%s)", resp.status_code, json["err_msg"])
         return json["hls_url"]
-
-    def set_flag(self, name: str, value: str, permanent: bool):
-        params = {
-            "Flag[0].Name": name,
-            "Flag[0].Value": value
-        }
-        if permanent:
-            params["Permanent"] = "1"
-        resp = requests.get(
-            self._api_prefix + "SetFlag", verify=False, auth=(self._user, self._password),
-            params=params)
-        if resp.status_code != 200:
-            json = resp.json()
-            _LOGGER.error(
-                "Failed to set flag '%s' to '%s': [%d](%s)", name, value, resp.status_code,
-                json["err_msg"])
 
     def ptz(self, cam_id: str, action: int):
         """ Pan / tilt / zoom.
