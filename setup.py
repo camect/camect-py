@@ -17,7 +17,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
-        "websockets",
+        "websockets>=14.0",
     ],
     python_requires='>=3.6',
 )

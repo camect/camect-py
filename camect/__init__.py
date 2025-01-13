@@ -248,7 +248,7 @@ class Hub:
             try:
                 _LOGGER.info("Connecting to Camect hub at '%s' ...", self._ws_uri)
                 websocket = await websockets.connect(self._ws_uri, ssl=context,
-                    extra_headers={"Authorization": authorization})
+                    additional_headers={"Authorization": authorization})
                 try:
                     async for msg in websocket:
                         _LOGGER.debug("Received event: %s", msg)
@@ -266,14 +266,14 @@ class Hub:
                     await asyncio.sleep(10)
                 except:
                     e = sys.exc_info()[0]
-                    _LOGGER.warning("Unexpected exception: %s", e)
+                    _LOGGER.warning("Unexpected exception: %s", e, exc_info=True)
                     await asyncio.sleep(10)
             except (OSError, ConnectionError):
                 _LOGGER.warning("Cannot connect Camect hub.")
                 await asyncio.sleep(10)
             except:
                 e = sys.exc_info()[0]
-                _LOGGER.warning("Unexpected exception: %s", e)
+                _LOGGER.warning("Unexpected exception: %s", e, exc_info=True)
                 await asyncio.sleep(10)
 
 Home = Hub
