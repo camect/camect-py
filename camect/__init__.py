@@ -32,6 +32,7 @@ def log_to_console():
     _LOGGER.addHandler(handler)
 
 EventListener = Callable[[Dict[str, str]], None]
+ConnectionListener = Callable[[bool], None]
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -57,7 +58,9 @@ class Hub:
         self._password = password
         # Make sure it connects.
         self.get_info()
+        self._ws_connected = False
         self._evt_listeners_ = []
+        self._conn_listeners_ = []
         self._evt_loop = asyncio.new_event_loop()
         evt_thread = Thread(
             target=self._evt_loop.run_until_complete, args=(self._event_handler(),))
@@ -143,7 +146,8 @@ class Hub:
         json = resp.json()
         if resp.status_code != 200:
             raise Error("Failed to get home info: [%d](%s)" % (resp.status_code, json["err_msg"]))
-        return json["camera"]
+        # Hub may omit the key when there are no cameras
+        return json.get("camera") or []
 
     def snapshot_camera(self, cam_id: str, width: int = 0, height: int = 0,
                         ts_ms: int = 0) -> bytes:
@@ -231,11 +235,32 @@ class Hub:
             _LOGGER.error(
                 "Failed to ptz camera %s: [%d](%s)", cam_id, resp.status_code, json["err_msg"])
 
+    def is_event_stream_connected(self) -> bool:
+        """True while the event websocket is open."""
+        return self._ws_connected
+
     def add_event_listener(self, cb: EventListener) -> None:
         self._evt_loop.call_soon_threadsafe(self._evt_listeners_.append, cb)
 
     def del_event_listener(self, cb: EventListener) -> None:
         self._evt_loop.call_soon_threadsafe(self._evt_listeners_.remove, cb)
+
+    def add_connection_listener(self, cb: ConnectionListener) -> None:
+        """Notify when the event websocket connects (True) or drops (False)."""
+        self._evt_loop.call_soon_threadsafe(self._conn_listeners_.append, cb)
+
+    def del_connection_listener(self, cb: ConnectionListener) -> None:
+        self._evt_loop.call_soon_threadsafe(self._conn_listeners_.remove, cb)
+
+    def _set_ws_connected(self, connected: bool) -> None:
+        if self._ws_connected == connected:
+            return
+        self._ws_connected = connected
+        for cb in list(self._conn_listeners_):
+            try:
+                cb(connected)
+            except Exception:
+                _LOGGER.warning("Connection listener failed", exc_info=True)
 
     def _authorization(self) -> str:
         return base64.b64encode(f"{self._user}:{self._password}".encode()).decode()
@@ -249,6 +274,7 @@ class Hub:
                 _LOGGER.info("Connecting to Camect hub at '%s' ...", self._ws_uri)
                 websocket = await websockets.connect(self._ws_uri, ssl=context,
                     additional_headers={"Authorization": authorization})
+                self._set_ws_connected(True)
                 try:
                     async for msg in websocket:
                         _LOGGER.debug("Received event: %s", msg)
@@ -260,20 +286,25 @@ class Hub:
                             _LOGGER.error("Invalid JSON '%s': %s", msg, err)
                 except (websockets.exceptions.ConnectionClosed, OSError):
                     _LOGGER.warning("Websocket to Camect hub was closed.")
+                    self._set_ws_connected(False)
                     await asyncio.sleep(5)
                 except (ConnectionRefusedError, ConnectionError):
                     _LOGGER.warning("Cannot connect Camect hub.")
+                    self._set_ws_connected(False)
                     await asyncio.sleep(10)
                 except:
                     e = sys.exc_info()[0]
                     _LOGGER.warning("Unexpected exception: %s", e, exc_info=True)
+                    self._set_ws_connected(False)
                     await asyncio.sleep(10)
             except (OSError, ConnectionError):
                 _LOGGER.warning("Cannot connect Camect hub.")
+                self._set_ws_connected(False)
                 await asyncio.sleep(10)
             except:
                 e = sys.exc_info()[0]
                 _LOGGER.warning("Unexpected exception: %s", e, exc_info=True)
+                self._set_ws_connected(False)
                 await asyncio.sleep(10)
 
 Home = Hub

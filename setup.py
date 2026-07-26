@@ -2,14 +2,14 @@ import setuptools
 
 setuptools.setup(
     name="camect-py",
-    version="0.2.0",
+    version="0.2.2",
     author="Chao Liu",
     author_email="chao@camect.com",
     description="A client library to talk to Camect.",
     license="MIT License",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
-    url="https://github.com/camect/camect-py",
+    url="https://github.com/jimboca/camect-py",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -18,6 +18,7 @@ setuptools.setup(
     ],
     install_requires=[
         "websockets>=14.0",
+        "requests",
     ],
     python_requires='>=3.6',
 )
